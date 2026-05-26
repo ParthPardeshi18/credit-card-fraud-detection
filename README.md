@@ -56,10 +56,21 @@ fraud-detection/
 │   └── Solution-Approach.pdf
 ├── src/
 │   ├── fraud_detection_pipeline.py
-│   └── _build_notebook.py
+│   ├── _build_notebook.py
+│   ├── data_pipeline.py                 ← shared splits (Ext.)
+│   ├── setup_model.py                   ← retrains + persists XGBoost (Ext.)
+│   ├── shap_analysis.py                 ← Extension 1
+│   ├── calibration_analysis.py          ← Extension 2
+│   └── fraud_app.py                     ← Extension 3 (Streamlit)
 ├── outputs/
 │   ├── charts/                          ← output charts
 │   ├── models/                          ← saved .pkl model files
+│   ├── xgb_fraud_model.pkl              ← trained pipeline (Ext.)
+│   ├── xgb_fraud_model_calibrated.pkl   ← isotonic-calibrated (Ext. 2)
+│   ├── scaler.pkl                       ← fitted StandardScaler
+│   ├── shap_*.png                       ← SHAP charts (Ext. 1)
+│   ├── calibration_*.png                ← calibration charts (Ext. 2)
+│   ├── threshold_optimisation.png       ← cost-sensitive sweep (Ext. 2)
 │   └── model_comparison.csv
 ├── README.md
 ├── requirements.txt
@@ -81,3 +92,70 @@ and place it in the `/data` folder before running any notebooks.
 2. Place `creditcard.csv` in `data/`
 3. Open `notebooks/fraud_detection_pipeline.ipynb`
 4. Run the Streamlit app with: `streamlit run src/fraud_app.py`
+
+## Personal extensions (beyond group submission)
+
+Three follow-up artefacts built on top of the group submission, each
+addressing a limitation flagged in the original report.
+
+### Extension 1 — SHAP explainability  *(`src/shap_analysis.py`)*
+
+Closes the report's gap: *"A separate explainability tool (SHAP) would be
+needed if a customer or regulator asks for reasons."*
+
+Five charts under `outputs/`:
+
+- `shap_summary_beeswarm.png` — global feature impact distribution
+- `shap_feature_importance.png` — top-15 features by mean |SHAP|
+- `shap_waterfall_fraud.png` — most-confident TRUE FRAUD explanation
+- `shap_waterfall_fp.png` — worst FALSE POSITIVE explanation
+- `shap_dependence_v14.png` — SHAP vs raw V14, coloured by Amount
+
+**Key finding:** V14, V10 and V4 are the top three drivers; the top-5
+features explain ~52% of total |SHAP| magnitude. In the sampled test
+data, the simple rule `V14 < -3` already captures a fraud rate of
+~97% (vs the 0.17% base rate) — a useful sanity-check companion to
+the full model.
+
+### Extension 2 — Probability calibration  *(`src/calibration_analysis.py`)*
+
+Closes the report's gap: *"Wrap the best estimator in
+CalibratedClassifierCV so the output is a true probability."*
+
+- Wraps the XGBoost pipeline in `CalibratedClassifierCV(method='isotonic', cv=5)`
+- Brier score improves **0.000674 → 0.000606** (~10% reduction)
+- Cost-sensitive threshold sweep reveals the **£-optimal threshold (~0.26)**
+  differs from the **F1-optimal threshold (~0.65)** by ~39 points
+- The £-optimal operating point recovers **£166 more net** than F1-optimal
+
+Charts: `calibration_curve.png`, `calibration_distribution.png`,
+`threshold_optimisation.png` (4-panel cost sweep).
+
+### Extension 3 — Streamlit fraud risk scorer  *(`src/fraud_app.py`)*
+
+A live, interactive demo. Run:
+
+```bash
+streamlit run src/fraud_app.py
+```
+
+Three tabs:
+
+1. **Transaction risk scorer** — enter Amount, Time, V4/V10/V11/V12/V14/V17;
+   get a real-time fraud probability, risk tier (AUTO-APPROVE / MANUAL REVIEW
+   / AUTO-BLOCK), and a per-row SHAP explanation (top-5 feature contributions).
+2. **Model performance summary** — KPI cards, ROC/PR curves, confusion
+   matrix at the live threshold, model comparison table, business £ impact.
+3. **Global SHAP explainability** — embeds the Extension 1 charts with
+   plain-English captions for a risk committee.
+
+Sidebar threshold slider updates the risk-tier boundaries in real time.
+
+### Reproducing the extensions
+
+```bash
+python src/setup_model.py          # retrains + saves outputs/xgb_fraud_model.pkl
+python src/shap_analysis.py        # Extension 1 charts
+python src/calibration_analysis.py # Extension 2 charts
+streamlit run src/fraud_app.py     # Extension 3 live app
+```
