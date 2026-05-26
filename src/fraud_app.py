@@ -159,7 +159,15 @@ button[data-testid="stBaseButton-primaryFormSubmit"]:hover {{
     box-shadow: 0 4px 14px rgba(0,180,216,0.28);
 }}
 .stButton > button[kind="primary"] p,
-.stFormSubmitButton > button[kind="primary"] p {{
+.stButton > button[kind="primaryFormSubmit"] p,
+.stFormSubmitButton > button[kind="primary"] p,
+.stFormSubmitButton > button[kind="primaryFormSubmit"] p,
+button[data-testid="stBaseButton-primary"] p,
+button[data-testid="stBaseButton-primaryFormSubmit"] p,
+button[data-testid="stBaseButton-primary"] div,
+button[data-testid="stBaseButton-primaryFormSubmit"] div,
+button[data-testid="stBaseButton-primary"] span,
+button[data-testid="stBaseButton-primaryFormSubmit"] span {{
     color: #0B1623 !important; font-weight: 700 !important;
 }}
 /* Secondary buttons (e.g. download) — keep readable on dark surfaces */
@@ -241,9 +249,7 @@ header[data-testid="stHeader"] {{ background: transparent; }}
 # Plotly common layout
 # ==========================================================================
 def _layout(title: str | None = None, height: int = 360):
-    return dict(
-        title=(dict(text=title, x=0.01, font=dict(size=14, color=C["text"]))
-               if title else None),
+    d: dict = dict(
         paper_bgcolor=C["surface"],
         plot_bgcolor=C["surface"],
         font=dict(family="Inter, Segoe UI, sans-serif",
@@ -257,6 +263,12 @@ def _layout(title: str | None = None, height: int = 360):
         legend=dict(bgcolor="rgba(0,0,0,0)", bordercolor=C["border"],
                     borderwidth=0, font=dict(color=C["text_2"], size=11)),
     )
+    # Only inject title key when there is a value — passing title=None in
+    # Plotly ≥6 renders the JavaScript string "undefined" on the chart.
+    if title:
+        d["title"] = dict(text=title, x=0.01,
+                          font=dict(size=14, color=C["text"]))
+    return d
 
 
 # ==========================================================================

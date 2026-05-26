@@ -58,11 +58,37 @@ def stratified_sample_indices(y: pd.Series, n_per_class: int = 250,
     return idx
 
 
+_BG      = "#0B1623"   # app background (deep navy)
+_SURFACE = "#13243C"   # card surface
+_BORDER  = "#243E5C"   # subtle grid / spine
+_TEXT    = "#F1F5F9"   # primary text
+_TEXT2   = "#94A8C0"   # secondary text
+
+
+def _apply_dark_theme() -> None:
+    """Apply project dark-theme to all subsequent matplotlib figures."""
+    plt.rcParams.update({
+        "figure.facecolor":  _BG,
+        "axes.facecolor":    _SURFACE,
+        "axes.edgecolor":    _BORDER,
+        "axes.labelcolor":   _TEXT2,
+        "text.color":        _TEXT,
+        "xtick.color":       _TEXT2,
+        "ytick.color":       _TEXT2,
+        "xtick.labelcolor":  _TEXT2,
+        "ytick.labelcolor":  _TEXT2,
+        "grid.color":        _BORDER,
+        "legend.facecolor":  _BG,
+        "legend.edgecolor":  _BORDER,
+        "legend.labelcolor": _TEXT2,
+        "figure.edgecolor":  _BG,
+    })
+
+
 def _save(fig_or_plt, path: Path) -> None:
-    """Save current figure at DPI, then close it."""
+    """Save current figure at DPI with dark background, then close it."""
     plt.tight_layout()
-    plt.savefig(path, dpi=DPI, bbox_inches="tight",
-                facecolor="white")
+    plt.savefig(path, dpi=DPI, bbox_inches="tight", facecolor=_BG)
     plt.close("all")
     print(f"  saved -> {path.relative_to(path.parent.parent)}")
 
@@ -71,6 +97,8 @@ def main() -> int:
     print("=" * 70)
     print("EXTENSION 1 — SHAP explainability for XGBoost fraud model")
     print("=" * 70)
+
+    _apply_dark_theme()   # set dark theme before any figure is created
 
     out = outputs_dir()
     splits = prepare_splits(verbose=True)
@@ -160,7 +188,7 @@ def main() -> int:
 
     fig, ax = plt.subplots(figsize=(9, 7))
     y_pos = np.arange(len(top15_names))
-    bars = ax.barh(y_pos, top15_means, color=bar_colours, edgecolor="white")
+    bars = ax.barh(y_pos, top15_means, color=bar_colours, edgecolor="none")
     ax.set_yticks(y_pos)
     ax.set_yticklabels(top15_names)
     ax.invert_yaxis()  # most-important on top
@@ -169,7 +197,7 @@ def main() -> int:
     for bar, val in zip(bars, top15_means):
         ax.text(val + max(top15_means) * 0.01,
                 bar.get_y() + bar.get_height() / 2,
-                f"{val:.3f}", va="center", fontsize=9, color=PALETTE["neutral"])
+                f"{val:.3f}", va="center", fontsize=9, color=_TEXT2)
 
     # Legend
     from matplotlib.patches import Patch
