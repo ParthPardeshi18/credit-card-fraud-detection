@@ -1,0 +1,19 @@
+# Streamlit theme — Fraud Risk Scorer (QMUL BUSM131)
+# This is the OFFICIAL way to theme Streamlit. The primaryColor here
+# propagates to every widget: slider tracks, primary buttons, progress
+# bars, focus rings, checkboxes, etc. No CSS overrides needed.
+
+[theme]
+base = "dark"
+primaryColor = "#00B4D8"             # cyan — sliders, primary buttons, accents
+backgroundColor = "#0B1623"          # app background (deep navy)
+secondaryBackgroundColor = "#13243C" # sidebar + card surfaces
+textColor = "#F1F5F9"                # primary text
+font = "sans serif"
+
+[server]
+headless = false
+runOnSave = true
+
+[browser]
+gatherUsageStats = false

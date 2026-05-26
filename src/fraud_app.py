@@ -121,25 +121,52 @@ div[data-testid="stMetricValue"] {{
 }}
 div[data-testid="stMetricDelta"] {{ color: {C["text_2"]} !important; }}
 
-/* ---------- form controls ---------- */
+/* ---------- form controls ----------
+   Slider track/thumb colour comes from .streamlit/config.toml
+   (primaryColor = #00B4D8). We only tune the surrounding container. */
 .stNumberInput input, .stTextInput input {{
     background: {C["surface"]} !important; color: {C["text"]} !important;
     border: 1px solid {C["border"]} !important; border-radius: 6px;
 }}
-.stSlider [data-baseweb="slider"] > div > div {{ background: {C["accent"]}; }}
-.stSlider [data-baseweb="thumb"] {{
-    background: {C["accent"]}; border: 2px solid {C["text"]};
+.stNumberInput button {{
+    background: {C["surface_2"]} !important; color: {C["text"]} !important;
+    border: 1px solid {C["border"]} !important;
 }}
 
-/* ---------- primary button ---------- */
-.stButton button, .stFormSubmitButton button {{
-    background: {C["accent"]} !important; color: {C["bg"]} !important;
-    border: none !important; border-radius: 8px !important;
-    font-weight: 600 !important; padding: 10px 22px !important;
-    transition: all 0.2s;
+/* ---------- primary button (cyan with high-contrast dark text) ---------- */
+.stButton > button[kind="primary"],
+.stFormSubmitButton > button[kind="primary"],
+button[data-testid="stBaseButton-primary"],
+button[data-testid="stBaseButton-primaryFormSubmit"] {{
+    background: {C["accent"]} !important;
+    color: #0B1623 !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.02em;
+    padding: 12px 22px !important;
+    transition: all 0.18s ease;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.06) inset,
+                0 2px 8px rgba(0,180,216,0.18);
 }}
-.stButton button:hover, .stFormSubmitButton button:hover {{
-    background: {C["accent_2"]} !important; transform: translateY(-1px);
+.stButton > button[kind="primary"]:hover,
+.stFormSubmitButton > button[kind="primary"]:hover,
+button[data-testid="stBaseButton-primary"]:hover,
+button[data-testid="stBaseButton-primaryFormSubmit"]:hover {{
+    background: {C["accent_2"]} !important;
+    color: #0B1623 !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(0,180,216,0.28);
+}}
+.stButton > button[kind="primary"] p,
+.stFormSubmitButton > button[kind="primary"] p {{
+    color: #0B1623 !important; font-weight: 700 !important;
+}}
+/* Secondary buttons (e.g. download) — keep readable on dark surfaces */
+.stButton > button[kind="secondary"] {{
+    background: {C["surface_2"]} !important;
+    color: {C["text"]} !important;
+    border: 1px solid {C["border"]} !important;
 }}
 
 /* ---------- dataframe ---------- */
@@ -147,9 +174,30 @@ div[data-testid="stMetricDelta"] {{ color: {C["text_2"]} !important; }}
     border: 1px solid {C["border"]}; border-radius: 8px; overflow: hidden;
 }}
 
-/* ---------- expander ---------- */
-.streamlit-expanderHeader {{
-    background: {C["surface"]}; border-radius: 6px; color: {C["text_2"]};
+/* ---------- expander (visible chevron + readable header) ---------- */
+[data-testid="stExpander"] details {{
+    background: {C["surface"]} !important;
+    border: 1px solid {C["border"]} !important;
+    border-radius: 8px !important;
+}}
+[data-testid="stExpander"] summary {{
+    background: {C["surface"]} !important;
+    color: {C["text"]} !important;
+    font-weight: 600 !important;
+    padding: 12px 16px !important;
+    border-radius: 8px !important;
+}}
+[data-testid="stExpander"] summary:hover {{
+    background: {C["surface_2"]} !important;
+}}
+[data-testid="stExpander"] summary svg {{
+    fill: {C["accent"]} !important;
+    color: {C["accent"]} !important;
+}}
+[data-testid="stExpander"] [data-testid="stExpanderDetails"] {{
+    background: {C["surface"]} !important;
+    border-top: 1px solid {C["border"]} !important;
+    padding: 14px 16px 16px 16px !important;
 }}
 
 /* ---------- alerts ---------- */
