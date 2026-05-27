@@ -842,39 +842,48 @@ with tab_global:
         unsafe_allow_html=True,
     )
 
-    out = project_root() / "outputs"
-    charts = [
-        ("Top features by contribution",
-         "shap_feature_importance.png",
-         "Mean |SHAP| per feature (top 15). The average magnitude of each "
-         "feature's effect on the fraud score. V14, V10 and V4 dominate."),
-        ("Distribution of feature impact",
-         "shap_summary_beeswarm.png",
-         "Each dot is one transaction; horizontal position is the SHAP "
-         "value. Colour indicates whether the raw feature value was high "
-         "(red) or low (blue)."),
-        ("Why a true fraud was flagged",
-         "shap_waterfall_fraud.png",
-         "The single most-confident TRUE FRAUD prediction in the test set, "
-         "broken down feature by feature. This is the explanation a "
-         "regulator or fraud analyst would receive."),
-        ("Why a legit transaction was wrongly flagged",
-         "shap_waterfall_fp.png",
-         "The worst FALSE POSITIVE: a legitimate transaction the model "
-         "mistakenly scored highest. Reviewing these features is how the "
-         "operations team would tune the threshold or add business rules."),
-    ]
+    _shap_dir = project_root() / "outputs"
 
-    for title, fname, caption in charts:
-        st.markdown(f"#### {title}")
-        path = out / fname
+    def _shap_img(fname: str, caption: str) -> None:
+        path = _shap_dir / fname
         if path.exists():
             st.image(str(path), use_container_width=True)
             st.caption(caption)
         else:
-            st.warning(f"`{fname}` not found. Run "
-                       f"`python src/shap_analysis.py` first.")
-        st.markdown("&nbsp;")
+            st.warning(f"`{fname}` not found — run `python src/shap_analysis.py`.")
+
+    # --- Row 1: beeswarm (60%) | feature importance (40%) ---
+    col_bees, col_imp = st.columns([0.6, 0.4])
+    with col_bees:
+        _shap_img(
+            "shap_summary_beeswarm.png",
+            "Each dot = one transaction. Red = high feature value, "
+            "Blue = low. Points left of centre reduce fraud score, "
+            "right increase it.",
+        )
+    with col_imp:
+        _shap_img(
+            "shap_feature_importance.png",
+            "V14 alone contributes 1.86× more than V10 — "
+            "the strongest single fraud signal in the model.",
+        )
+
+    st.markdown("&nbsp;")
+
+    # --- Row 2: true positive waterfall | false positive waterfall ---
+    col_wf, col_wfp = st.columns(2)
+    with col_wf:
+        _shap_img(
+            "shap_waterfall_fraud.png",
+            "Transaction correctly flagged — V14=−8.67 "
+            "drove the score to 100% fraud probability.",
+        )
+    with col_wfp:
+        _shap_img(
+            "shap_waterfall_fp.png",
+            "False positive — V14=−9.25 mimicked fraud "
+            "patterns despite being a legitimate transaction.",
+        )
 
     st.markdown("---")
     st.markdown("#### How to read these charts")
