@@ -7,10 +7,11 @@ The original group report flagged: "Wrap the best estimator in
 CalibratedClassifierCV so the output is a true probability."  This
 script implements that and shows the before/after business impact.
 
-Generates three charts under outputs/:
-  1. calibration_curve.png         — reliability diagram, before vs after
-  2. calibration_distribution.png  — predicted-prob histograms by class
-  3. threshold_optimisation.png    — 4-panel cost-sensitive sweep
+Generates charts under outputs/:
+  1. outputs/charts/calibration_curve.png  — reliability diagram (uniform bins,
+                                              n=20) + histogram of predicted probs
+  2. outputs/calibration_distribution.png  — predicted-prob histograms by class
+  3. outputs/threshold_optimisation.png    — 4-panel cost-sensitive sweep
 """
 
 from __future__ import annotations
@@ -31,7 +32,11 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
-from sklearn.calibration import CalibratedClassifierCV, calibration_curve
+from sklearn.calibration import (
+    CalibratedClassifierCV,
+    CalibrationDisplay,
+    calibration_curve,
+)
 from sklearn.metrics import (
     average_precision_score,
     brier_score_loss,
@@ -50,10 +55,37 @@ warnings.filterwarnings("ignore")
 FP_COST = 5.0          # £ friction per false positive
 DPI = 150
 
+# ---------------------------------------------------------------------------
+# Dark theme constants (matches app palette)
+# ---------------------------------------------------------------------------
+_BG      = "#0B1623"
+_SURFACE = "#13243C"
+_BORDER  = "#243E5C"
+_TEXT    = "#F1F5F9"
+_TEXT2   = "#94A8C0"
+
+
+def _apply_dark_theme() -> None:
+    """Set matplotlib rcParams for a dark-background style."""
+    plt.rcParams.update({
+        "figure.facecolor":  _BG,
+        "axes.facecolor":    _SURFACE,
+        "axes.edgecolor":    _BORDER,
+        "axes.labelcolor":   _TEXT,
+        "xtick.color":       _TEXT2,
+        "ytick.color":       _TEXT2,
+        "text.color":        _TEXT,
+        "legend.facecolor":  _SURFACE,
+        "legend.edgecolor":  _BORDER,
+        "grid.color":        _BORDER,
+        "axes.titlecolor":   _TEXT,
+        "figure.edgecolor":  _BG,
+    })
+
 
 def _save(path: Path) -> None:
     plt.tight_layout()
-    plt.savefig(path, dpi=DPI, bbox_inches="tight", facecolor="white")
+    plt.savefig(path, dpi=DPI, bbox_inches="tight", facecolor=_BG)
     plt.close("all")
     print(f"  saved -> {path.relative_to(path.parent.parent)}")
 
@@ -92,7 +124,12 @@ def main() -> int:
     print("EXTENSION 2 — Probability calibration & cost-sensitive threshold")
     print("=" * 70)
 
+    _apply_dark_theme()
+
     out = outputs_dir()
+    charts_dir = out / "charts"
+    charts_dir.mkdir(exist_ok=True, parents=True)
+
     splits = prepare_splits(verbose=True)
     X_train, y_train = splits.X_train, splits.y_train
     X_test,  y_test  = splits.X_test, splits.y_test
@@ -143,50 +180,52 @@ def main() -> int:
           f"calibrated={prauc_cal:.4f}")
 
     # =====================================================================
-    # CHART 6 — Reliability diagram (calibration curve)
+    # CHART 6 — Reliability diagram (CalibrationDisplay, uniform bins, n=20)
+    #           + histogram of predicted probabilities
     # =====================================================================
     print("\n[1/3] Reliability diagram ...")
-    n_bins = 10
-    frac_pos_uncal, mean_pred_uncal = calibration_curve(
-        y_test, proba_uncal, n_bins=n_bins, strategy="quantile"
+    n_bins = 20
+
+    fig = plt.figure(figsize=(10, 9))
+    gs_cal = GridSpec(2, 1, figure=fig, height_ratios=[2, 1], hspace=0.40)
+    ax_top = fig.add_subplot(gs_cal[0])
+    ax_bot = fig.add_subplot(gs_cal[1])
+
+    # Top panel — reliability diagram for both models (uniform bins)
+    CalibrationDisplay.from_predictions(
+        y_test, proba_uncal,
+        n_bins=n_bins, strategy="uniform",
+        name=f"Uncalibrated  (Brier={brier_uncal:.5f})",
+        ax=ax_top, ref_line=True,
+        color=PALETTE["fraud"], marker="o", linestyle="--", linewidth=2,
     )
-    frac_pos_cal, mean_pred_cal = calibration_curve(
-        y_test, proba_cal, n_bins=n_bins, strategy="quantile"
+    CalibrationDisplay.from_predictions(
+        y_test, proba_cal,
+        n_bins=n_bins, strategy="uniform",
+        name=f"Calibrated (isotonic)  (Brier={brier_cal:.5f})",
+        ax=ax_top, ref_line=False,
+        color=PALETTE["accent"], marker="s", linewidth=2.5,
     )
+    ax_top.set_xlabel("Mean predicted P(fraud)  [uniform bins, n=20]")
+    ax_top.set_ylabel("Fraction of positives in bin")
+    ax_top.set_title("Probability calibration — before vs after isotonic regression")
+    ax_top.legend(loc="upper left", frameon=False, fontsize=9)
+    ax_top.grid(alpha=0.25)
 
-    # 95% Wilson interval for fraction of positives in each bin
-    def wilson(p, n, z=1.96):
-        if n == 0:
-            return 0.0, 0.0
-        denom = 1 + z**2 / n
-        centre = (p + z**2 / (2 * n)) / denom
-        half = z * np.sqrt((p * (1 - p) + z**2 / (4 * n)) / n) / denom
-        return max(0, centre - half), min(1, centre + half)
+    # Bottom panel — histogram of predicted probabilities (all transactions)
+    ax_bot.hist(proba_uncal, bins=60, range=(0, 1),
+                color=PALETTE["fraud"], alpha=0.55, label="Uncalibrated",
+                edgecolor="none")
+    ax_bot.hist(proba_cal, bins=60, range=(0, 1),
+                color=PALETTE["accent"], alpha=0.55, label="Calibrated",
+                edgecolor="none")
+    ax_bot.set_xlabel("Predicted P(fraud)")
+    ax_bot.set_ylabel("Count")
+    ax_bot.set_title("Histogram of predicted probabilities (all transactions)")
+    ax_bot.legend(loc="upper right", frameon=False, fontsize=9)
+    ax_bot.grid(alpha=0.25)
 
-    # Approximate bin sizes
-    bin_size = max(1, len(y_test) // n_bins)
-    bands_u = np.array([wilson(p, bin_size) for p in frac_pos_uncal])
-    bands_c = np.array([wilson(p, bin_size) for p in frac_pos_cal])
-
-    fig, ax = plt.subplots(figsize=(8, 7))
-    ax.plot([0, 1], [0, 1], color=PALETTE["neutral"], lw=1,
-            ls="--", label="Perfect calibration")
-    ax.fill_between(mean_pred_uncal, bands_u[:, 0], bands_u[:, 1],
-                    color=PALETTE["fraud"], alpha=0.12)
-    ax.plot(mean_pred_uncal, frac_pos_uncal,
-            color=PALETTE["fraud"], lw=2, ls="--", marker="o",
-            label=f"Uncalibrated  (Brier={brier_uncal:.5f})")
-    ax.fill_between(mean_pred_cal, bands_c[:, 0], bands_c[:, 1],
-                    color=PALETTE["accent"], alpha=0.18)
-    ax.plot(mean_pred_cal, frac_pos_cal,
-            color=PALETTE["accent"], lw=2.5, marker="s",
-            label=f"Calibrated (isotonic)  (Brier={brier_cal:.5f})")
-    ax.set_xlabel("Mean predicted P(fraud)  [quantile bins]")
-    ax.set_ylabel("Fraction of positives in bin")
-    ax.set_title("Probability calibration — before vs after isotonic regression")
-    ax.legend(loc="upper left", frameon=False)
-    ax.grid(alpha=0.25)
-    _save(out / "calibration_curve.png")
+    _save(charts_dir / "calibration_curve.png")
 
     print("\nSO WHAT: Before calibration, a predicted score of 0.7 did not "
           "mean 70% probability of fraud. After isotonic regression it does, "
@@ -205,10 +244,10 @@ def main() -> int:
     ]:
         ax.hist(proba[~mask_fraud], bins=50, range=(0, 1),
                 color=PALETTE["legit"], alpha=0.7, label="Legit",
-                edgecolor="white")
+                edgecolor="none")
         ax.hist(proba[mask_fraud], bins=50, range=(0, 1),
                 color=PALETTE["fraud"], alpha=0.85, label="Fraud",
-                edgecolor="white")
+                edgecolor="none")
         ax.set_yscale("log")
         ax.set_xlabel("Predicted P(fraud)")
         ax.set_title(title)
