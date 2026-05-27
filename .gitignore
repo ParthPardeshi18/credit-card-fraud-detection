@@ -1,7 +1,79 @@
-venv/
+# =============================================================================
+# Credit Card Fraud Detection — QMUL BUSM131
+# .gitignore — production-ready for Streamlit Cloud deployment
+# =============================================================================
+
+# ---------- Python ----------
 __pycache__/
-.DS_Store
-*.pyc
-.env
-.claude/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.tox/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# ---------- Virtualenvs ----------
+venv/
+.venv/
+env/
+ENV/
+
+# ---------- Notebooks ----------
+.ipynb_checkpoints/
+
+# ---------- Dataset files (NEVER commit — host on HuggingFace Hub) ----------
+# Raw CSV  : 143 MB — exceeds GitHub's 100 MB hard limit
+# Parquet  :  46 MB — still too large for a code repo; no binary blobs
 data/creditcard.csv
+data/creditcard.parquet
+data/*.parquet
+data/*.csv
+data/*.json
+data/*.feather
+# Preserve the data/ folder itself so the directory exists after clone
+!data/.gitkeep
+
+# ---------- OS / IDE ----------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ---------- Environment & secrets ----------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ---------- Streamlit local secrets (NEVER commit real tokens) ----------
+.streamlit/secrets.toml
+
+# ---------- Claude Code ----------
+.claude/
+
+# ---------- Jupyter ----------
+*.ipynb_checkpoints
+
+# ---------- Misc ----------
+*.log
+*.tmp
+*.bak
+tmp/
+temp/

@@ -27,7 +27,7 @@ from sklearn.metrics import (
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from data_pipeline import prepare_splits, project_root  # noqa: E402
+from data_pipeline import prepare_splits, project_root, st_load_dataframe  # noqa: E402
 
 
 # ==========================================================================
@@ -292,7 +292,10 @@ def load_explainer(_pipe):
 
 @st.cache_data(show_spinner=False)
 def load_splits():
-    return prepare_splits(verbose=False)
+    # Pass the already-cached DataFrame into prepare_splits so Streamlit
+    # never reads the raw file twice within the same session.
+    df = st_load_dataframe()
+    return prepare_splits(verbose=False, df=df)
 
 
 @st.cache_data(show_spinner=False)
