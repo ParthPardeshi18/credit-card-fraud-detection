@@ -12,8 +12,16 @@ textColor = "#F1F5F9"                # primary text
 font = "sans serif"
 
 [server]
-headless = false
-runOnSave = true
+# headless MUST be true on Streamlit Cloud — no display available.
+# runOnSave is a local-dev convenience only; harmless but noisy in prod.
+headless = true
+runOnSave = false
+enableCORS = false
+enableXsrfProtection = false
 
 [browser]
 gatherUsageStats = false
+
+[general]
+# Suppress the first-run email prompt so the app starts non-interactively.
+email = ""

@@ -261,24 +261,40 @@ def st_load_dataframe() -> pd.DataFrame:
     """
     ``@st.cache_data``-wrapped version of ``load_dataframe()``.
 
-    Import and call this inside fraud_app.py so the DataFrame is loaded
-    once per Streamlit session and shared across all reruns.
+    Must be called from within a live Streamlit execution context.
+    The decorated inner function is defined at module level (via
+    ``_get_st_cached_loader``) so Streamlit can track a stable cache key
+    — defining it inside a plain function creates a new cache entry on
+    every call, which defeats caching.
 
     Usage::
 
         from data_pipeline import st_load_dataframe
-        df = st_load_dataframe()     # downloads once, then cached
+        df = st_load_dataframe()
     """
-    try:
-        import streamlit as st
-    except ImportError as exc:
-        raise ImportError("streamlit is not installed.") from exc
+    return _get_st_cached_loader()()
 
-    @st.cache_data(show_spinner="⏳  Loading dataset …", ttl=_CACHE_TTL_S)
-    def _cached() -> pd.DataFrame:
-        return load_dataframe(verbose=False)
 
-    return _cached()
+def _get_st_cached_loader():
+    """
+    Return a module-level ``@st.cache_data`` function.
+
+    Lazy-imports Streamlit so this module remains importable without
+    Streamlit installed (needed by standalone scripts).
+    """
+    import streamlit as st
+
+    # Build once and stash on this function object so the decorated
+    # callable is always the same Python object across calls.
+    if not hasattr(_get_st_cached_loader, "_fn"):
+
+        @st.cache_data(show_spinner="⏳  Loading dataset …", ttl=_CACHE_TTL_S)
+        def _cached_df() -> pd.DataFrame:
+            return load_dataframe(verbose=False)
+
+        _get_st_cached_loader._fn = _cached_df   # type: ignore[attr-defined]
+
+    return _get_st_cached_loader._fn              # type: ignore[attr-defined]
 
 
 # ---------------------------------------------------------------------------

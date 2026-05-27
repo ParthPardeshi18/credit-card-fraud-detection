@@ -291,17 +291,18 @@ def load_explainer(_pipe):
 
 
 @st.cache_data(show_spinner=False)
-def load_splits():
-    # Pass the already-cached DataFrame into prepare_splits so Streamlit
-    # never reads the raw file twice within the same session.
-    df = st_load_dataframe()
-    return prepare_splits(verbose=False, df=df)
+def load_splits(_df: "pd.DataFrame"):
+    # Receive the already-cached DataFrame so prepare_splits never
+    # triggers a second file-read / download within the same session.
+    # The leading underscore tells @st.cache_data not to hash the df arg
+    # (hashing a 57k-row DataFrame on every rerun is expensive).
+    return prepare_splits(verbose=False, df=_df)
 
 
 @st.cache_data(show_spinner=False)
-def load_test_predictions():
+def load_test_predictions(_df: "pd.DataFrame"):
     pipe_ = load_model()
-    s = load_splits()
+    s = load_splits(_df)
     proba = pipe_.predict_proba(s.X_test)[:, 1]
     return s.X_test, s.y_test, proba
 
@@ -318,7 +319,9 @@ def load_model_comparison():
 
 
 # ==========================================================================
-# Load core artefacts
+# Load core artefacts — all errors surface as user-visible messages so
+# the process never crashes silently (which causes the Streamlit Cloud
+# health-check to report "connection refused").
 # ==========================================================================
 try:
     pipe = load_model()
@@ -328,8 +331,36 @@ try:
                      else metadata.get("feature_names",
                                        ["Time"] + [f"V{i}" for i in range(1, 29)] + ["Amount"]))
 except FileNotFoundError:
-    st.error("⚠️  Model file not found at `outputs/xgb_fraud_model.pkl`. "
-             "Please run `python src/setup_model.py` first.")
+    st.error(
+        "⚠️ **Model file not found** — `outputs/xgb_fraud_model.pkl`.\n\n"
+        "Run `python src/setup_model.py` locally, commit the `.pkl` to the "
+        "`outputs/` folder, and redeploy."
+    )
+    st.stop()
+except Exception as _exc:
+    st.error(f"⚠️ **Unexpected error loading model:** `{_exc}`")
+    st.stop()
+
+# Dataset — load after the model so a missing dataset shows a clear message
+# rather than a blank screen or connection-refused health-check failure.
+try:
+    _dataset_df = st_load_dataframe()   # cached; downloads from HF if needed
+except FileNotFoundError as _exc:
+    st.error(
+        "⚠️ **Dataset not available.**\n\n"
+        "The app could not find `data/creditcard.parquet` locally and the "
+        "HuggingFace download failed.\n\n"
+        "**Fix:** follow `docs/DATASET_HOSTING.md` to upload the Parquet file "
+        "to HuggingFace Hub, then update `HF_DATASET_REPO` in "
+        "`src/data_pipeline.py` and redeploy."
+    )
+    st.stop()
+except Exception as _exc:
+    st.error(
+        f"⚠️ **Dataset load error:** `{_exc}`\n\n"
+        "Check `HF_DATASET_REPO` in `src/data_pipeline.py` and that the "
+        "HuggingFace repo is **public** (or that `HF_TOKEN` is set in Secrets)."
+    )
     st.stop()
 
 
@@ -653,7 +684,7 @@ with tab_perf:
 
     st.markdown("&nbsp;")
 
-    X_test, y_test, proba_test = load_test_predictions()
+    X_test, y_test, proba_test = load_test_predictions(_dataset_df)
     fpr_arr, tpr_arr, _ = roc_curve(y_test, proba_test)
     prec_arr, rec_arr, _ = precision_recall_curve(y_test, proba_test)
     roc_auc = roc_auc_score(y_test, proba_test)
